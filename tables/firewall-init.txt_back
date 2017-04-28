@@ -1,0 +1,20 @@
+Chain INPUT (policy ACCEPT 9 packets, 2244 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 CTH        all  --  eth0   *       129.16.0.0/16        0.0.0.0/0            /* Fix NFS traffic */
+2        0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x29/0x29
+3        0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x3F/0x00
+
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x29/0x29
+2        0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x3F/0x00
+
+Chain OUTPUT (policy ACCEPT 5 packets, 1207 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     all  --  *      eth0    0.0.0.0/0            129.16.0.0/16       
+
+Chain CTH (1 references)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     all  --  *      *       129.16.20.26         0.0.0.0/0            ctstate RELATED,ESTABLISHED /* NFS server soleil */
+2        0     0 RETURN     all  --  *      *       129.16.20.0/23       0.0.0.0/0            /* Dont look at CE */
+3        0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED /* Allow the rest to Chalmers */

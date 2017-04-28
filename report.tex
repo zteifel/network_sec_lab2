@@ -1,0 +1,215 @@
+\documentclass[a4paper,12pt]{report}
+
+% TODO: set author names and group number
+\newcommand{\firstauthor}{Henrik Adolfsson}
+\newcommand{\secondauthor}{Jacob Thomas Simon}
+\newcommand{\groupnumber}{Group 06}
+
+% include packages
+\usepackage[margin=2cm]{geometry}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage[pdftex]{hyperref}
+\usepackage[titletoc]{appendix} % adds ``Appendix'' prefix in TOC
+\usepackage{listings}
+\usepackage{url}
+
+% configure packages
+\lstset{language=bash
+    ,basicstyle=\footnotesize\ttfamily
+    ,frame=single
+    ,breaklines=true
+    ,columns=fullflexible
+    ,keepspaces=true
+    ,numbers=left, numberstyle=\tiny, stepnumber=2, numbersep=5pt}
+
+% pdflatex goodies.
+\hypersetup{
+    pdfstartview=FitH,
+    pdftitle={NetSec Lab 2 report: The Linux Firewall},
+    pdfauthor={\firstauthor, \secondauthor},
+    pdfsubject={},
+    pdfkeywords={}
+    bookmarks,
+    bookmarksopen,
+    colorlinks,
+    linkcolor=black,
+    citecolor=blue,
+    urlcolor=blue,
+}
+
+
+
+
+\title{The Linux Firewall\\\mbox{}\\Laboratory Report \\in EDA491/DIT071 Network Security}
+\author{\firstauthor\\\secondauthor\\\mbox{}\\\groupnumber}
+\date{\today}
+
+\begin{document}
+
+\renewcommand{\thepage}{\roman{page}}
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{chapter}{Table of Contents}
+
+\chapter{Introduction}
+\setcounter{page}{1}
+\renewcommand{\thepage}{\arabic{page}}
+
+When a host is connected to a network such as the internet it is good to have the ability to control the communication so that only traffic that is intended to take place is allowed to pass in or out. This regulation can be made using packet filtering. A packet filter looks at the header of packets as they pass through, and decides the fate of the entire packet. Depending on some defined rules, it might chose to drop the packet or accept them.
+
+In Linux  packet filtering is handled by the kernel and can be administered with the tool \emph{iptables}.
+
+The purpose of this report is to make sure a machine running Linux only allow traffic according to some predefined requirements presented in Chapter 2, were we also talk about the initial configuration of the firewall. Furthermore, the firewall configuration, which is presented in detail in Chapter 3, needs to be properly tested to make sure that the configuration meets the requirements. The methods for testing correctness is discussed in Chapter 4 alongside the results of the testing. The report is then ended by a discussion on the configuration, its week spots and some suggestions of improvement.
+
+
+\chapter{System Configuration and Requirements}
+\label{ch:setup}
+
+%   This section should include an explanation of the initial system configuration and the services which are running on the host. It should also include the security requirements (as stated in the lab PM).
+% 
+%   Make appropriate use of tables. For your convenience, an example table is given below, but its content may need to be updated.
+% 
+%   Add subsections as needed.
+
+In this section we will present the initial configuration of the firewall explain the rules defined in the chains INPUT, OUTPUT and the user defined CTH. THE FORWARD chain has no rules since this is not a dedicated firewall. We will also present the requirements specified for the firewall configuration that is needed.
+
+The initial firewall configuration is shown in Listing~\ref{lst:fw-init}.
+\section{Firewall rules}
+It is important to remember that the order of the following rules is important, if a rule is matched, the rules within the same chain with higher line numbers are disregarded.
+\subsection{The Input Chain}
+The policy for the Input Chain is set to ACCEPT, which means that if no rule is matched, then all packages coming in to the system is allowed passage.
+The rules defined are (according to line number):
+\begin{enumerate}
+    \item Pass all incoming traffic on interface \emph{em1} from source \emph{129.16.0.0/16} to the used defined chain CTH. This is to allow the client to connect to the NFS server.
+    \item DROP all packages with protocol TCP and only TCP flags FIN,PSH,URG FIN,PSH,URG set, in order to prevent the XMAS scan.
+    \item DROP all packages with protocol TCP and no TCP flags set, in order to prevent the NULL scan.
+\end{enumerate}
+
+\subsection{The Output Chain}
+The policy for the Output Chain is also ACCEPT. The rules defined are (according to line number):
+\begin{enumerate}
+    \item ACCEPT all outgoing packets to destination \emph{129.16.0.0/16} on interface \emph{em1}. This is the range for the NFS servers at Chalmers.
+\end{enumerate}
+
+\subsection{The CTH Chain}
+This chained is defined to handle packets coming from Chalmers. The rules defined are (according to line number):
+\begin{enumerate}
+    \item ACCEPT all packets in a ESTABLISHED or RELATED connection from the NFS server at \emph{129.16.226.60}.
+    \item RETURN (ignore) all packets coming from the range 129.16.20.0/22.he NFS server at \emph{129.16.226.60}.
+    \item ACCEPT all packets in a ESTABLISHED or RELATED connection from the rest of chalmers (all other ip-addresses)
+\end{enumerate}
+
+\section{Requirements}
+According the specification for the firewall the following are requirements:
+\begin{enumerate}
+  \item Set the default policies to default DROP all packets. In accordance withe the firewall philosophy "everything not specifically permitted is denied"
+  \item Allow all traffic from the loopback device.
+  \item Allow traffic from your host. Allow all outgoing traffic.
+  \item Drop packets that are spoofed to come from a range reserved for private networks.
+  \item Allow established connections (stateful inspection)
+  \item Allow ping and add protection from ping-flooding.
+  \item Allow connection for the application servies SSH port 22, Alternative HTTP port 8080and RPC port 111.
+  \item Log all other packets.
+\end{enumerate}
+\newpage
+\lstinputlisting[caption=Initial firewall configuration,label=lst:fw-init]{tables/firewall-init.txt}
+
+
+\chapter{Firewall Configuration}
+
+\newcommand{\para}[2]{\noindent\textbf{#1. #2}\newline}
+
+In this Chapter we will discuss the chosen configuration for the firewall shown in Listing~\ref{lst:fw-init}. We will go through each requirement and explain the corresponding firewall rule.
+\\\\
+\para{1}{Set the default policies to DROP all packets}
+For each chain INPUT,OUTPUT and FORWARD the policy was set to DROP. By doing this, if there is no rule matching for a packet the packet will be dropped.
+\\\\
+\para{2}{Allow all loopback traffic}
+This is assured by rule on line 7 in the INPUT chain and line 1 in the OUTPUT chain. (NOTE: the lines 1-5 are all specific to interface \emph{em1})
+\\\\
+\para{3}{Allow all traffic from host}
+Rule 3 in OUTPUT makes sure all traffic leaving the host is allowed (NOTE: None of the previous rules are blocking)
+\\\\
+\para{4}{Drop spoofed packets}
+By rule 3-6 in INPUT chain all traffic coming from 10.0.0.8/8, 169.254.0.0/15, 172.16.0.0/12, and 192.168.0.0/16 which are the ranges reserved for private networks. (NOTE: specific to interface \emph{em1}.
+\\\\
+\para{5}{Allow established connections}
+By using State Match, the connection status can be used to create rules. This is done in rule 11, where all incoming connections with status ESTABLISHED or RELATED to an established connections are accepted.
+\\\\
+\para{6}{Allow ping and protection from pling flooding}
+By using the limit module rule 1 allows ICMP echo-request unless they are repeated faster than 1/sec. Rule 2 makes sure all other ICMP packets are dropped, since otherwise they could be allowed by rule 11.
+\\\\
+\para{7}{Allow connections for specific applications}
+Rule 12-17 in INPUT chain is for allow communication to the running services SSH port 22, RPC port 111 and the alternative HTTP port 8080.
+\\\\
+\para{8}{Log all other packets}
+By rule 18 in INPUT and rule 4 in OUTPUT all packages that are not matched by any other rule is logged. (NOTE: rule 4 in OUTPUT will never match since rule 3 is set to allow all outgoing traffic). One should be careful with allowing logging without using a limit due to the risk of log flooding.
+
+% {\color{red}
+%   Describe the new firewall configuration. Make sure you match the requirements from the previous chapter to the configuration.
+% 
+%   Add subsections as needed.
+% }
+
+\newpage
+\lstinputlisting[caption=Final firewall
+configuration,label=lst:fw-config]{tables/firewall-final.txt}
+
+
+\chapter{Firewall Correctness}
+\label{ch:correctness}
+
+{\color{red}
+  Argue why your configuration fulfils the client's needs. Make sure you match the concrete tests you ran (to test the final configuration) to the requirements.
+  
+  For example: 'By issuing command X, we found that only Y number of packets returned when pinging the host. Therefore, the ping flooding protection requirement (requirement Z) is fulfilled.
+
+  Add subsections as needed.
+}
+
+\chapter{Discussion}
+\label{ch:discussion}
+
+{\color{red}
+Reflect on the current firewall configuration. E.g., is it complete? Recommendations for future configuration, maintenance requirements of the firewall, etc.
+}
+Suggestions. Protect against log flooding, syn flooding etc.
+
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+{\color{red}
+Present your conclusions in relation to the objective stated in the introduction. It should not contain new information that is not discussed elsewhere in the report. 
+}
+
+
+\bibliographystyle{ieeetr}
+\bibliography{report.bib}
+\addcontentsline{toc}{chapter}{References}
+
+{\color{red}
+Please use Vancouver/IEEE style for your referencing. For more information, check \url{http://www.lib.unimelb.edu.au/cite/ieee/index.html}. References can easily be managed with the program JabRef.
+}
+
+\appendix
+\appendixpage
+
+\chapter{Initial Configuration Script}
+\label{app:fw-initial}
+
+The initial configuration script of the firewall is shown in Listing~\ref{lst:script-init}. 
+
+\lstinputlisting[caption=Initial configuration script,label=lst:script-init,]{scripts/firewall-init.sh}
+
+
+\chapter{Final Configuration Script}
+\label{app:fw-final}
+
+The final configuration script of the firewall is shown in Listing~\ref{lst:script-final}.
+
+\lstinputlisting[caption=Final firewall configuration script,label=lst:script-final]{scripts/firewall-final.sh}
+
+\end{document}
+

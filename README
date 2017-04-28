@@ -1,0 +1,9 @@
+This is the LaTeX template for the Network Security Course Lab 2.
+
+-- Building on lab computers --
+
+To build this document on the Chalmers Linux System, you need to source
+(include) the LaTeX environment, which sets up the correct paths:
+
+Run "source /chalmers/sw/unsup/texlive/bashrc.inc" in your bash shell.
+

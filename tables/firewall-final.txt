@@ -1,0 +1,36 @@
+Chain INPUT (policy DROP 48 packets, 5211 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     icmp --  em1    *       0.0.0.0/0            0.0.0.0/0            icmptype 8 limit: avg 1/sec burst 5
+2        0     0 DROP       icmp --  em1    *       0.0.0.0/0            0.0.0.0/0           
+3        0     0 DROP       all  --  em1    *       169.254.0.0/16       0.0.0.0/0           
+4        0     0 DROP       all  --  em1    *       192.168.0.0/16       0.0.0.0/0           
+5        0     0 DROP       all  --  em1    *       172.16.0.0/12        0.0.0.0/0           
+6        0     0 DROP       all  --  em1    *       10.0.0.0/8           0.0.0.0/0           
+7        0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0           
+8        0     0 CTH        all  --  em1    *       129.16.0.0/16        0.0.0.0/0            /* Allow NFS traffic */
+9        0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x29/0x29 /* Block XMAS packets */
+10       0     0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp flags:0x3F/0x00 /* Block NULL packets */
+11       0     0 ACCEPT     all  --  em1    *       0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
+12       0     0 ACCEPT     tcp  --  em1    *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22
+13       0     0 ACCEPT     sctp --  em1    *       0.0.0.0/0            0.0.0.0/0            sctp dpt:22
+14       0     0 ACCEPT     udp  --  em1    *       0.0.0.0/0            0.0.0.0/0            udp dpt:22
+15       0     0 ACCEPT     tcp  --  em1    *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080
+16       0     0 ACCEPT     udp  --  em1    *       0.0.0.0/0            0.0.0.0/0            udp dpt:8080
+17       0     0 ACCEPT     tcp  --  em1    *       0.0.0.0/0            0.0.0.0/0            tcp dpt:111
+18      48  5211 LOG        all  --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 4
+
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT (policy DROP 70 packets, 5711 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     all  --  *      lo      0.0.0.0/0            0.0.0.0/0           
+2        0     0 ACCEPT     all  --  *      em1     0.0.0.0/0            129.16.0.0/16       
+3        0     0 ACCEPT     all  --  *      em1     0.0.0.0/0            0.0.0.0/0           
+4       70  5711 LOG        all  --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 4
+
+Chain CTH (1 references)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 ACCEPT     all  --  *      *       129.16.226.60        0.0.0.0/0            state RELATED,ESTABLISHED /* NFS server */
+2        0     0 RETURN     all  --  *      *       129.16.20.0/22       0.0.0.0/0            /* Ignore CSE networks (including rooms 4220/4225) */
+3        0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED /* Allow the rest to Chalmers */
